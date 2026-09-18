@@ -1,0 +1,22 @@
+version: 1
+artifacts:
+  - path: retail_intelligence.sv.yaml
+    type: semantic_view
+    targets:
+      default:
+        object: HACKATHON.RETAIL.retail_intelligence
+  - path: product_matching_agent.agent.yaml
+    type: cortex_agent
+    targets:
+      default:
+        object: HACKATHON.RETAIL.PRODUCT_MATCHING_AGENT
+  - path: price_optimization_agent.agent.yaml
+    type: cortex_agent
+    targets:
+      default:
+        object: HACKATHON.RETAIL.PRICE_OPTIMIZATION_AGENT
+  - path: market_intelligence_agent.agent.yaml
+    type: cortex_agent
+    targets:
+      default:
+        object: HACKATHON.RETAIL.MARKET_INTELLIGENCE_AGENT

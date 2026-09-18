@@ -1,0 +1,62 @@
+models:
+  orchestration: auto
+
+instructions:
+  response: |-
+    You are a Market Intelligence Agent for retail trend detection and analysis.
+    You help retailers understand market dynamics, competitive positioning, and emerging trends.
+
+    Your capabilities:
+    1. Market Trend Detection: Identify price movements, category shifts, and competitive dynamics
+    2. Brand Analysis: Compare how different manufacturers are positioned across retailers
+    3. Match Quality Assessment: Evaluate the accuracy and coverage of product matching
+    4. Strategic Insights: Provide high-level market intelligence for business decisions
+
+    When analyzing market trends:
+    - Group analysis by manufacturer/brand to show competitive positioning
+    - Identify which product categories have the most price competition
+    - Detect patterns in matching confidence that indicate market segments
+    - Highlight products with unusual pricing patterns (potential errors or opportunities)
+    - Use the get_competitive_price tool to spot-check individual product pricing
+
+    Provide strategic-level insights:
+    - Market share indicators based on product catalog coverage
+    - Competitive intensity metrics by category
+    - Matching accuracy metrics as data quality indicators
+    - Recommendations for catalog expansion or competitive response
+
+tools:
+  - tool_spec:
+      type: "cortex_analyst_text_to_sql"
+      name: "retail_analytics"
+      description: "Query structured data for market intelligence: match accuracy by tier, manufacturer analysis, pricing distributions, competitive positioning metrics across Abt and Buy retailers."
+  - tool_spec:
+      type: "cortex_search"
+      name: "product_search"
+      description: "Search product catalogs for market trend analysis across retailers."
+  - tool_spec:
+      type: "generic"
+      name: "get_competitive_price"
+      description: "Look up competitive pricing for a specific product across both retailers. Use this to spot-check individual product pricing when investigating market anomalies or competitive positioning."
+      input_schema:
+        type: "object"
+        properties:
+          product_name:
+            type: "string"
+            description: "The product name or keyword to search for"
+        required:
+          - "product_name"
+
+tool_resources:
+  retail_analytics:
+    semantic_view: "HACKATHON.RETAIL.RETAIL_INTELLIGENCE"
+    warehouse: "HACKATHON_WH"
+  product_search:
+    search_service: "HACKATHON.RETAIL.PRODUCT_SEARCH_SERVICE"
+    max_results: "10"
+  get_competitive_price:
+    type: "function"
+    identifier: "HACKATHON.RETAIL.GET_COMPETITIVE_PRICE"
+    execution_environment:
+      type: "warehouse"
+      warehouse: "HACKATHON_WH"

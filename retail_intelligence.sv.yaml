@@ -1,0 +1,106 @@
+name: retail_intelligence
+description: Retail intelligence semantic view for competitive pricing analysis and product matching across retailers
+tables:
+  - name: PRODUCT_MATCHES_FINAL
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRODUCT_MATCHES_FINAL
+    description: Final product matches between Abt and Buy retailers with multi-strategy confidence scores
+    columns:
+      - name: ABT_ID
+        description: Product ID from Abt retailer
+        data_type: NUMBER
+      - name: ABT_NAME
+        description: Product name from Abt retailer
+        data_type: TEXT
+      - name: ABT_PRICE
+        description: Product price at Abt retailer in USD
+        data_type: FLOAT
+      - name: BUY_ID
+        description: Product ID from Buy retailer
+        data_type: NUMBER
+      - name: BUY_NAME
+        description: Product name from Buy retailer  
+        data_type: TEXT
+      - name: BUY_PRICE
+        description: Product price at Buy retailer in USD
+        data_type: FLOAT
+      - name: MANUFACTURER
+        description: Product manufacturer/brand name
+        data_type: TEXT
+      - name: COMBINED_CONFIDENCE
+        description: Combined matching confidence score (0-1) using vector, fuzzy, and LLM strategies
+        data_type: FLOAT
+      - name: MATCH_TIER
+        description: Match confidence tier - HIGH (>=0.85), MEDIUM (>=0.70), or LOW (<0.70)
+        data_type: TEXT
+      - name: PRICE_DIFFERENCE
+        description: Absolute price difference between retailers in USD
+        data_type: FLOAT
+      - name: PRICE_GAP_PCT
+        description: Price gap as percentage - positive means Abt is more expensive
+        data_type: FLOAT
+      - name: VECTOR_SCORE
+        description: Semantic embedding cosine similarity score (0-1)
+        data_type: FLOAT
+      - name: FUZZY_SCORE
+        description: Fuzzy string matching Jaro-Winkler score (0-1)
+        data_type: FLOAT
+      - name: LLM_CONFIDENCE
+        description: LLM-based match verification confidence (0-1)
+        data_type: FLOAT
+  - name: PRICING_HISTORY
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRICING_HISTORY
+    description: Historical pricing data for products across retailers over time
+    columns:
+      - name: PRODUCT_ID
+        description: Product identifier
+        data_type: NUMBER
+      - name: RETAILER
+        description: Retailer name (ABT or BUY)
+        data_type: TEXT
+      - name: PRICE_DATE
+        description: Date of the recorded price
+        data_type: DATE
+      - name: PRICE
+        description: Product price in USD on that date
+        data_type: FLOAT
+verified_queries:
+  - name: price_comparison
+    question: What are the biggest price differences between retailers?
+    verified_query: |
+      SELECT ABT_NAME, ABT_PRICE, BUY_NAME, BUY_PRICE, PRICE_DIFFERENCE, PRICE_GAP_PCT
+      FROM HACKATHON.RETAIL.PRODUCT_MATCHES_FINAL
+      WHERE MATCH_TIER IN ('HIGH', 'MEDIUM')
+      ORDER BY PRICE_DIFFERENCE DESC
+      LIMIT 10
+  - name: high_confidence_matches
+    question: Which products have the highest matching confidence?
+    verified_query: |
+      SELECT ABT_NAME, BUY_NAME, COMBINED_CONFIDENCE, MATCH_TIER, VECTOR_SCORE, FUZZY_SCORE, LLM_CONFIDENCE
+      FROM HACKATHON.RETAIL.PRODUCT_MATCHES_FINAL
+      ORDER BY COMBINED_CONFIDENCE DESC
+      LIMIT 10
+  - name: manufacturer_pricing
+    question: How do prices compare by manufacturer?
+    verified_query: |
+      SELECT MANUFACTURER, COUNT(*) as PRODUCT_COUNT,
+             AVG(ABT_PRICE) as AVG_ABT_PRICE, AVG(BUY_PRICE) as AVG_BUY_PRICE,
+             AVG(PRICE_GAP_PCT) as AVG_PRICE_GAP_PCT
+      FROM HACKATHON.RETAIL.PRODUCT_MATCHES_FINAL
+      WHERE MANUFACTURER != ''
+      GROUP BY MANUFACTURER
+      ORDER BY AVG_PRICE_GAP_PCT DESC
+  - name: matching_accuracy_by_tier
+    question: How many products are in each match tier?
+    verified_query: |
+      SELECT MATCH_TIER, COUNT(*) as COUNT, 
+             AVG(COMBINED_CONFIDENCE) as AVG_CONFIDENCE,
+             AVG(PRICE_GAP_PCT) as AVG_PRICE_GAP
+      FROM HACKATHON.RETAIL.PRODUCT_MATCHES_FINAL
+      GROUP BY MATCH_TIER
+      ORDER BY AVG_CONFIDENCE DESC
