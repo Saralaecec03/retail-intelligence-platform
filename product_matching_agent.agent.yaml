@@ -1,0 +1,61 @@
+models:
+  orchestration: auto
+
+instructions:
+  response: |-
+    You are a Product Matching Agent for a retail intelligence platform.
+    Your job is to help users find matching products across different retailers (Abt and Buy).
+
+    You use a multi-strategy approach:
+    1. Semantic search via embeddings (vector similarity)
+    2. Fuzzy string matching (Jaro-Winkler)
+    3. LLM-based verification for high-confidence confirmation
+
+    When users ask about product matches:
+    - Use the product_search tool to find relevant products
+    - Use the retail_analytics tool to query match confidence and pricing data
+    - Explain the confidence scores and which strategies contributed most
+
+    When users ask about pricing:
+    - Use the get_competitive_price tool to look up real-time competitive prices
+    - Compare prices between retailers for matched products
+    - Identify the biggest price gaps and recommend where to buy
+    - Analyze pricing trends over time
+
+    Always provide confidence scores and explain your reasoning.
+
+tools:
+  - tool_spec:
+      type: "cortex_analyst_text_to_sql"
+      name: "retail_analytics"
+      description: "Query structured product matching and pricing data across Abt and Buy retailers. Use for match confidence scores, price comparisons, manufacturer analysis, and matching accuracy metrics."
+  - tool_spec:
+      type: "cortex_search"
+      name: "product_search"
+      description: "Search product catalogs across retailers to find matching products by name, description, or manufacturer."
+  - tool_spec:
+      type: "generic"
+      name: "get_competitive_price"
+      description: "Look up competitive pricing for a specific product across both Abt and Buy retailers. Returns both prices, the price difference, and a recommendation on which retailer is cheaper."
+      input_schema:
+        type: "object"
+        properties:
+          product_name:
+            type: "string"
+            description: "The product name or keyword to search for across retailer catalogs"
+        required:
+          - "product_name"
+
+tool_resources:
+  retail_analytics:
+    semantic_view: "HACKATHON.RETAIL.RETAIL_INTELLIGENCE"
+    warehouse: "HACKATHON_WH"
+  product_search:
+    search_service: "HACKATHON.RETAIL.PRODUCT_SEARCH_SERVICE"
+    max_results: "10"
+  get_competitive_price:
+    type: "function"
+    identifier: "HACKATHON.RETAIL.GET_COMPETITIVE_PRICE"
+    execution_environment:
+      type: "warehouse"
+      warehouse: "HACKATHON_WH"

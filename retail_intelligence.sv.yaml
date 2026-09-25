@@ -1,0 +1,174 @@
+name: retail_intelligence
+description: Retail intelligence semantic view for competitive pricing analysis and product matching across retailers
+tables:
+  - name: product_matches
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRODUCT_MATCHES_FINAL
+    description: Matched products between Abt and Buy retailers with confidence scores
+    primary_key:
+      columns:
+        - ABT_ID
+    dimensions:
+      - name: abt_id
+        expr: ABT_ID
+        data_type: NUMBER
+        description: Product ID from Abt retailer
+      - name: abt_product_name
+        expr: ABT_NAME
+        data_type: TEXT
+        description: Product name from Abt retailer
+        synonyms:
+          - abt product
+          - abt item
+      - name: buy_product_name
+        expr: BUY_NAME
+        data_type: TEXT
+        description: Product name from Buy retailer
+        synonyms:
+          - buy product
+          - buy item
+      - name: manufacturer_name
+        expr: MANUFACTURER
+        data_type: TEXT
+        description: Product manufacturer or brand
+        synonyms:
+          - brand
+          - maker
+      - name: match_confidence_tier
+        expr: MATCH_TIER
+        data_type: TEXT
+        description: "Match tier: HIGH (>=0.85), MEDIUM (>=0.70), LOW (<0.70)"
+        synonyms:
+          - confidence level
+          - match quality
+      - name: llm_verified
+        expr: LLM_MATCH
+        data_type: BOOLEAN
+        description: Whether LLM verified this as a true match
+    facts:
+      - name: abt_price
+        expr: ABT_PRICE
+        data_type: FLOAT
+        description: Product price at Abt retailer in USD
+      - name: buy_price
+        expr: BUY_PRICE
+        data_type: FLOAT
+        description: Product price at Buy retailer in USD
+      - name: combined_confidence
+        expr: COMBINED_CONFIDENCE
+        data_type: FLOAT
+        description: Combined matching confidence score (0-1) using vector, fuzzy, and LLM strategies
+      - name: vector_score
+        expr: VECTOR_SCORE
+        data_type: FLOAT
+        description: Semantic embedding cosine similarity score (0-1)
+      - name: fuzzy_score
+        expr: FUZZY_SCORE
+        data_type: FLOAT
+        description: Fuzzy string matching Jaro-Winkler score (0-1)
+      - name: llm_confidence
+        expr: LLM_CONFIDENCE
+        data_type: FLOAT
+        description: LLM-based match verification confidence (0-1)
+      - name: price_diff
+        expr: "ABS(ABT_PRICE - BUY_PRICE)"
+        data_type: FLOAT
+        description: Absolute price difference between retailers in USD
+      - name: price_gap
+        expr: "ROUND((ABT_PRICE - BUY_PRICE) / NULLIF(ABT_PRICE, 0) * 100, 2)"
+        data_type: FLOAT
+        description: Price gap percentage - positive means Abt is more expensive
+    metrics:
+      - name: total_matches
+        expr: "COUNT(abt_id)"
+        description: Total number of product matches
+      - name: avg_confidence
+        expr: "AVG(combined_confidence)"
+        description: Average combined matching confidence score
+      - name: avg_price_gap
+        expr: "AVG(price_gap)"
+        description: Average price gap percentage across matches
+      - name: max_price_diff
+        expr: "MAX(price_diff)"
+        description: Maximum absolute price difference
+
+  - name: pricing
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRICING_HISTORY
+    description: Historical pricing data across retailers
+    dimensions:
+      - name: product_id
+        expr: PRODUCT_ID
+        data_type: TEXT
+        description: Product identifier
+      - name: retailer_name
+        expr: RETAILER
+        data_type: TEXT
+        description: Retailer name (ABT or BUY)
+        synonyms:
+          - store
+          - seller
+    time_dimensions:
+      - name: price_date
+        expr: PRICE_DATE
+        data_type: DATE
+        description: Date of the recorded price
+    facts:
+      - name: price
+        expr: PRICE
+        data_type: FLOAT
+        description: Product price in USD on that date
+    metrics:
+      - name: avg_price
+        expr: "AVG(price)"
+        description: Average product price
+
+relationships:
+  - name: PRICING_TO_MATCHES
+    left_table: pricing
+    right_table: product_matches
+    relationship_columns:
+      - left_column: product_id
+        right_column: abt_id
+    join_type: left_outer
+    relationship_type: many_to_one
+
+verified_queries:
+  - name: price_comparison
+    question: What are the biggest price differences between retailers?
+    sql: |
+      SELECT abt_product_name, abt_price, buy_product_name, buy_price, price_diff, price_gap
+      FROM __product_matches
+      WHERE match_confidence_tier IN ('HIGH', 'MEDIUM')
+      ORDER BY price_diff DESC
+      LIMIT 10
+  - name: high_confidence_matches
+    question: Which products have the highest matching confidence?
+    sql: |
+      SELECT abt_product_name, buy_product_name, combined_confidence, match_confidence_tier, vector_score, fuzzy_score, llm_confidence
+      FROM __product_matches
+      ORDER BY combined_confidence DESC
+      LIMIT 10
+  - name: manufacturer_pricing
+    question: How do prices compare by manufacturer?
+    sql: |
+      SELECT manufacturer_name, COUNT(*) as PRODUCT_COUNT,
+             AVG(abt_price) as AVG_ABT_PRICE, AVG(buy_price) as AVG_BUY_PRICE,
+             AVG(price_gap) as AVG_PRICE_GAP
+      FROM __product_matches
+      WHERE manufacturer_name != ''
+      GROUP BY manufacturer_name
+      ORDER BY AVG_PRICE_GAP DESC
+  - name: matching_accuracy_by_tier
+    question: How many products are in each match tier?
+    sql: |
+      SELECT match_confidence_tier, COUNT(*) as COUNT,
+             AVG(combined_confidence) as AVG_CONFIDENCE,
+             AVG(price_gap) as AVG_PRICE_GAP
+      FROM __product_matches
+      GROUP BY match_confidence_tier
+      ORDER BY AVG_CONFIDENCE DESC
