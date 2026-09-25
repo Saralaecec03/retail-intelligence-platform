@@ -1,0 +1,29 @@
+-- =============================================================
+-- 04_cortex_search.sql — Cortex Search Service
+-- =============================================================
+
+USE DATABASE HACKATHON;
+USE SCHEMA RETAIL;
+
+CREATE OR REPLACE CORTEX SEARCH SERVICE PRODUCT_SEARCH_SERVICE
+  ON SEARCH_TEXT
+  ATTRIBUTES RETAILER, PRODUCT_NAME, PRICE, MANUFACTURER
+  WAREHOUSE = HACKATHON_WH
+  TARGET_LAG = '1 hour'
+AS (
+    SELECT 
+        NAME || ' ' || COALESCE(DESCRIPTION, '') AS SEARCH_TEXT,
+        'ABT' AS RETAILER,
+        NAME AS PRODUCT_NAME,
+        PRICE,
+        '' AS MANUFACTURER
+    FROM HACKATHON.RETAIL.ABT
+    UNION ALL
+    SELECT 
+        NAME || ' ' || COALESCE(DESCRIPTION, '') AS SEARCH_TEXT,
+        'BUY' AS RETAILER,
+        NAME AS PRODUCT_NAME,
+        PRICE,
+        COALESCE(MANUFACTURER, '') AS MANUFACTURER
+    FROM HACKATHON.RETAIL.BUY
+);

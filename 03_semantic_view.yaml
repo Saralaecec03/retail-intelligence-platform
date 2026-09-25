@@ -1,0 +1,110 @@
+name: RETAIL_INTELLIGENCE
+description: Retail Intelligence Platform - competitive pricing and product matching analytics
+tables:
+  - name: PRICING
+    description: Historical pricing data across retailers
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRICING_HISTORY
+    dimensions:
+      - name: PRICE_DATE
+        description: Date of the recorded price
+        expr: PRICE_DATE
+        data_type: DATE
+        access_modifier: public_access
+      - name: RETAILER_NAME
+        synonyms:
+          - store
+          - seller
+        description: Retailer name (ABT or BUY)
+        expr: RETAILER
+        data_type: VARCHAR(3)
+        access_modifier: public_access
+    metrics:
+      - name: AVG_PRICE
+        description: Average product price
+        expr: AVG(PRICE)
+        access_modifier: public_access
+  - name: PRODUCT_MATCHES
+    description: Matched products between Abt and Buy retailers with confidence scores
+    base_table:
+      database: HACKATHON
+      schema: RETAIL
+      table: PRODUCT_MATCHES_FINAL
+    primary_key:
+      columns:
+        - ABT_ID
+    dimensions:
+      - name: ABT_PRODUCT_NAME
+        synonyms:
+          - abt product
+          - abt item
+        description: Product name from Abt retailer
+        expr: ABT_NAME
+        data_type: VARCHAR(2000)
+        access_modifier: public_access
+      - name: BUY_PRODUCT_NAME
+        synonyms:
+          - buy product
+          - buy item
+        description: Product name from Buy retailer
+        expr: BUY_NAME
+        data_type: VARCHAR(2000)
+        access_modifier: public_access
+      - name: LLM_VERIFIED
+        description: Whether LLM verified this as a true match
+        expr: LLM_MATCH
+        data_type: BOOLEAN
+        access_modifier: public_access
+      - name: MANUFACTURER_NAME
+        synonyms:
+          - brand
+          - maker
+        description: Product manufacturer or brand
+        expr: MANUFACTURER
+        data_type: VARCHAR(500)
+        access_modifier: public_access
+      - name: MATCH_CONFIDENCE_TIER
+        synonyms:
+          - confidence level
+          - match quality
+        description: "Match tier: HIGH (>=0.85), MEDIUM (>=0.70), LOW (<0.70)"
+        expr: MATCH_TIER
+        data_type: VARCHAR(6)
+        access_modifier: public_access
+    facts:
+      - name: PRICE_DIFF
+        description: Absolute price difference between retailers
+        expr: ABS(ABT_PRICE - BUY_PRICE)
+        data_type: FLOAT
+        access_modifier: public_access
+      - name: PRICE_GAP
+        description: Price gap percentage - positive means Abt more expensive
+        expr: "ROUND((ABT_PRICE - BUY_PRICE) / NULLIF(ABT_PRICE, 0) * 100, 2)"
+        data_type: FLOAT
+        access_modifier: public_access
+    metrics:
+      - name: AVG_CONFIDENCE
+        description: Average combined matching confidence score
+        expr: AVG(COMBINED_CONFIDENCE)
+        access_modifier: public_access
+      - name: AVG_PRICE_GAP
+        description: Average price gap percentage across matches
+        expr: AVG(product_matches.price_gap)
+        access_modifier: public_access
+      - name: MAX_PRICE_DIFF
+        description: Maximum absolute price difference
+        expr: MAX(product_matches.price_diff)
+        access_modifier: public_access
+      - name: TOTAL_MATCHES
+        description: Total number of product matches
+        expr: COUNT(ABT_ID)
+        access_modifier: public_access
+relationships:
+  - name: PRICING_TO_MATCHES
+    left_table: PRICING
+    right_table: PRODUCT_MATCHES
+    relationship_columns:
+      - left_column: PRODUCT_ID
+        right_column: ABT_ID
